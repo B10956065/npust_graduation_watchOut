@@ -2,3 +2,9 @@
 /oldFile/
 /outputImage/
 /road/
+/.idea/
+/AdaBins_main/AdaBins_kitti.pt
+/pretrained/AdaBins_kitti.pt
+/targetImage/targetVideo0.mp4
+/targetImage/targetVideo0403.mp4
+/targetImage/targetVideo750.mp4
