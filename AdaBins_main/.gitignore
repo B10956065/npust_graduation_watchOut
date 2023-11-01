@@ -1,0 +1,11 @@
+*.pyc
+__pycache__/
+.env
+.idea/
+predictions_nyu/
+predictions_kitti/
+wandb/
+checkpoints/
+pretrained/
+/AdaBins_kitti.pt/
+
