@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 from ultralytics import YOLO
 from shapely.geometry import Polygon
+from skimage.metrics import structural_similarity as ssim
 
 
 def image_cutting(x1: int, y1: int, x2: int, y2: int, image):
@@ -22,8 +23,9 @@ def image_cutting(x1: int, y1: int, x2: int, y2: int, image):
 
 
 def draw_outline():
-    model = YOLO("yolov8s-seg-all-twRoadV2i-e50b0.pt")
-    video_path = "targetImage/targetVideo750.mp4"
+    model = YOLO("yolov8n-seg-all-twRoadV3i-e50b0.pt")
+    # video_path = "targetImage/targetVideo750.mp4"
+    video_path = "targetImage/monitor_1.mp4"  # TODO: 調整輸入檔案
     list_accident_area = list()  # storge accident area
     list_waiting_delete = list()
 
@@ -33,9 +35,12 @@ def draw_outline():
         if success:
             masked_frame = frame.copy()
             mask_car = []
-            results = model(frame, classes=[0])
+            results = model(frame, classes=[0], conf=0.5)
             for result in results:
-                mask_car = list(result.masks.xy)
+                if result.masks:
+                    mask_car = list(result.masks.xy)
+                else:
+                    print("NO MASK!!!")
             mask_car = [mxy for mxy in mask_car if len(mxy) > 3]
 
             zero_mask = np.zeros_like(frame)
@@ -73,30 +78,35 @@ def draw_outline():
             else:
                 print("Pass: no any object detected this frame.")
 
-            # TODO: monitor "accident_area"
+            # monitor "accident_area"
             # list_accident_area = [x1, y1, x2, y2, n, id1, id2, frame]
-            for i, acc in enumerate(list_accident_area):
+            zero_mask2 = np.zeros_like(frame)
+            for i, acc in enumerate(list_accident_area):  # i -> index, acc -> content
+                if acc[4] <= 0:  # 新加進來的不用檢查，舊幀==新幀，查了也是白查
+                    list_accident_area[i][4] += 1
+                    continue
                 # get new frame
                 old_frame = acc[-1].copy()
                 new_frame, _ = image_cutting(*acc[:4], cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
                 list_accident_area[i][-1] = new_frame
 
-                # FIXME: Optical flow is too slow, need another way to check if moving
-                # optical flow
-                flow = cv2.calcOpticalFlowFarneback(old_frame, new_frame, None, 0.8, 3, 5, 2, 5, 1.2, 0)
-                flow = abs(flow.mean())
+                # 給定連續的二幀，比較影像中的主體是否移動 (Structural Similarity Index)
+                ssim_index, _ = ssim(old_frame, new_frame, full=True)
+                # print(f"ssim_index={ssim_index} (between '{acc[5]}' & '{acc[6]}')")
 
                 # check if move
-                if flow > 0.5:  # TODO: Adjustment the threshold of moving
-                    # TODO: if moved => confirmed accident occurred
-                    pass
-                else:
-                    # if NOT move => n+=1 and wait next round
+                ssim_threshold = 0.8  # TODO: Adjustment the threshold of ssim moving
+                if ssim_index < ssim_threshold:  # moving -> n+1 and wait for next round
                     list_accident_area[i][4] += 1
+                else:  # not moving -> confirmed occurrence
+                    print(f"ssim_index={ssim_index} (between '{acc[5]}' & '{acc[6]}')")
+                    cv2.rectangle(zero_mask2, (acc[0], acc[1]), (acc[2], acc[3]), color=(0, 255, 255), thickness=5)
+                    list_accident_area[i][4] += 99
 
                 # check life and add too old to list_waiting_delete
-                if acc[4] > 30:  # TODO: Adjustment the threshold of kill acc area
+                if acc[4] > 5:  # TODO: Adjustment the threshold of kill acc area
                     list_waiting_delete.append(i)
+            masked_frame = cv2.addWeighted(masked_frame, 1, zero_mask2, 1, 0)
 
             # pop item according to list_waiting_pop
             if len(list_waiting_delete):
