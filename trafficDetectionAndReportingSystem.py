@@ -25,7 +25,7 @@ def image_cutting(x1: int, y1: int, x2: int, y2: int, image):
 def draw_outline():
     model = YOLO("yolov8n-seg-all-twRoadV3i-e50b0.pt")
     # video_path = "targetImage/targetVideo750.mp4"
-    video_path = "targetImage/monitor_1.mp4"  # TODO: 調整輸入檔案
+    video_path = "targetImage/monitor_2.mp4"  # TODO: 調整輸入檔案
     list_accident_area = list()  # storge accident area
     list_waiting_delete = list()
 
@@ -104,7 +104,7 @@ def draw_outline():
                     list_accident_area[i][4] += 99
 
                 # check life and add too old to list_waiting_delete
-                if acc[4] > 5:  # TODO: Adjustment the threshold of kill acc area
+                if acc[4] > 6:  # TODO: Adjustment the threshold of kill acc area
                     list_waiting_delete.append(i)
             masked_frame = cv2.addWeighted(masked_frame, 1, zero_mask2, 1, 0)
 
